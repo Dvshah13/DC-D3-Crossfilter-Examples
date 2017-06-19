@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>D3, DC.js with Crossfilter</title>
+	<link rel="stylesheet" href="dc.css">
+</head>
+<body>
+	<h1>D3, DC.js with Crossfilter</h1>
+
+	<div id="carType">
+    <strong>Car Type</strong>
+    <span class="reset" style="display: none;">Selected: <span class="filter"></span></span>
+    <a class="reset" href="javascript:carTypeChart.filterAll();dc.redrawAll();" style="display: none;">reset</a>
+
+    <div class="clearfix"></div>
+
+	</div>
+
+	<div id="gateName">
+		<strong>Gate Name</strong>
+    <span class="reset" style="display: none;">Selected: <span class="filter"></span></span>
+    <a class="reset" href="javascript:gateNameChart.filterAll();dc.redrawAll();" style="display: none;">reset</a>
+
+    <div class="clearfix"></div>
+	</div>
+
+    <div>
+      <div class="dc-data-count">
+          <span class="filter-count"></span> selected out of <span class="total-count"></span> records | <a
+              href="javascript:dc.filterAll(); dc.renderAll();">Reset All</a>
+    </div>
+    </div>
+    <table class="table table-hover dc-data-table">
+    </table>
+
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/crossfilter/1.3.7/crossfilter.js" charset="utf-8"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.js" charset="utf-8"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/dc/1.6.0/dc.css" charset="utf-8"></script>
+
+	<script>
+
+		var carTypeChart = dc.rowChart("#carType"),  // row chart rendered in cartype div id, using row for categorial otherwise use bar chart
+			gateNameChart = dc.rowChart("#gateName"),  // row chart rendered in cartype div id
+			visCount = dc.dataCount(".dc-data-count"),  // shows data count for data class
+			visTable = dc.dataTable(".dc-data-table");  // data table for data tabel class
+
+
+		d3.csv("Lekagul Sensor Data.csv.gz", function (err, data) {  // Loading data and using callback function to catch error
+			// Timestamp,car-id,car-type,gate-name  ## Reference of what data looks like
+			// 2015-05-01 00:43:28,20154301124328-262,4,entrance3
+			// 2015-05-01 01:03:48,20154301124328-262,4,general-gate1
+			// 2015-05-01 01:06:24,20154301124328-262,4,ranger-stop2
+			// 2015-05-01 01:09:25,20154301124328-262,4,ranger-stop0
+			if (err) throw err;
+
+			data.forEach(function (d) {  // convert the timestamp format, into date time js object
+				d.Timestamp = new Date(d.Timestamp);
+			});
+
+			var ndx = crossfilter(data);  // create crossfilter of data
+			var all = ndx.groupAll();  // group all of the data, allows you to see how many records you have and work with it
+
+			var carTypeDim = ndx.dimension(function (d) { return d["car-type"]; });  // analyze dimension of label car-type
+			var gateNameDim = ndx.dimension(function (d) { return d["gate-name"]; });  // analyze dimension of label gate-name
+			var dateDim = ndx.dimension(function (d) { return d.Timestamp; });  // analyze dimension of label date
+
+			var carTypeGroup = carTypeDim.group();  // total number of elements in there
+			var gateNameGroup = gateNameDim.group(); // total number of elements in there
+			var dateGroup = dateDim.group(); // total number of elements in there
+
+
+			carTypeChart  // assigning data
+				.dimension(carTypeDim)
+				.group(carTypeGroup)
+				.elasticX(true);  // command to make allow axis to not be fixed
+
+			gateNameChart  // assigning data
+				.dimension(gateNameDim)
+				.group(gateNameGroup)
+				.elasticX(true)
+				.data(function (group) { return group.top(10); });  // returns just the top 10 elements
+
+
+			visCount  // dimension for count
+				.dimension(ndx)
+				.group(all);
+
+			visTable  // dimension for date, here using timestamp
+				.dimension(dateDim)
+        // Data table does not use crossfilter group but rather a closure
+        // as a grouping function
+				.group(function (d) {
+            var format = d3.format('02d');
+            return d.Timestamp.getFullYear() + '/' + format((d.Timestamp.getMonth() + 1));
+        })
+				.columns([  // specify the columns we're showing
+					"Timestamp",
+					"car-id",
+					"car-type",
+					"gate-name"
+					]);
+
+			dc.renderAll();  // render all the charts
+
+		});
+	</script>
+</body>
+</html>
